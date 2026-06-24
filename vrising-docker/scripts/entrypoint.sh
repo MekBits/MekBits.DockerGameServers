@@ -36,6 +36,9 @@ set -euo pipefail
 : "${BACKUP_ENABLED:=false}"
 : "${DISCORD_WEBHOOK_URL:=}"
 
+INSTALL_MARKER="${SERVER_DIR}/.steamcmd-${VRISING_APPID}.complete"
+BACKUP_PID=""
+
 SETTINGS_DIR="${DATA_DIR}/Settings"
 HOST_CFG="${SETTINGS_DIR}/ServerHostSettings.json"
 GAME_CFG="${SETTINGS_DIR}/ServerGameSettings.json"
@@ -55,19 +58,25 @@ notify() {
 # ------------------------------------------------------------------ install --
 install_or_update() {
     local needs_install=false
-    if [[ ! -f "${SERVER_DIR}/VRisingServer.exe" ]]; then
-        log "Server binary missing — performing fresh install."
+    if [[ ! -f "${SERVER_DIR}/VRisingServer.exe" || ! -f "${INSTALL_MARKER}" ]]; then
+        log "Server install is missing or incomplete — running SteamCMD."
         needs_install=true
     fi
 
     if [[ "${needs_install}" == "true" || "${UPDATE_ON_START,,}" == "true" ]]; then
         log "Running SteamCMD for app ${VRISING_APPID}..."
+        rm -f "${INSTALL_MARKER}"
         "${STEAMCMD_DIR}/steamcmd.sh" \
             +@sSteamCmdForcePlatformType windows \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update "${VRISING_APPID}" validate \
             +quit
+        if [[ ! -f "${SERVER_DIR}/VRisingServer.exe" ]]; then
+            log "ERROR: SteamCMD completed but VRisingServer.exe is still missing."
+            return 1
+        fi
+        date -u +%Y-%m-%dT%H:%M:%SZ > "${INSTALL_MARKER}"
     else
         log "Skipping update (UPDATE_ON_START=${UPDATE_ON_START})."
     fi
@@ -118,6 +127,14 @@ start_backup_loop() {
     [[ "${BACKUP_ENABLED,,}" == "true" ]] || return 0
     log "Backup loop enabled (interval=${BACKUP_INTERVAL:-3600}s)."
     /usr/local/bin/backup.sh --loop &
+    BACKUP_PID=$!
+}
+
+stop_backup_loop() {
+    [[ -n "${BACKUP_PID}" ]] || return 0
+    kill "${BACKUP_PID}" 2>/dev/null || true
+    wait "${BACKUP_PID}" 2>/dev/null || true
+    BACKUP_PID=""
 }
 
 # ----------------------------------------------------------- run the server --
@@ -144,10 +161,28 @@ run_server() {
     log "Launching: ${cmd[*]}"
     notify start "V Rising server starting: \`${SERVER_NAME}\`"
 
-    set +e
-    "${cmd[@]}"
-    local rc=$?
-    set -e
+    "${cmd[@]}" &
+    local server_pid=$!
+
+    local rc=0 stopping=false
+    forward() {
+        stopping=true
+        log "Received stop signal — forwarding to V Rising."
+        kill -TERM "${server_pid}" 2>/dev/null || true
+        pkill -TERM -P "${server_pid}" 2>/dev/null || true
+    }
+    trap forward INT TERM
+
+    while kill -0 "${server_pid}" 2>/dev/null; do
+        wait "${server_pid}" && rc=0 || rc=$?
+    done
+    trap - INT TERM
+    stop_backup_loop
+
+    if [[ "${stopping}" == "true" && ${rc} -ge 128 ]]; then
+        rc=0
+    fi
+
     log "Server exited with code ${rc}."
     if [[ ${rc} -ne 0 ]]; then
         notify crash "V Rising server **exited with code ${rc}**."

@@ -7,14 +7,14 @@ dedicated server, running on Debian slim under 64-bit Wine.
 
 | Choice | Why |
 |---|---|
-| `debian:stable-slim` base | Wine on Alpine/musl is unreliable for Steam games; Debian is the realistic minimum. |
-| Wine **64-bit only** (no i386 multiarch) | Server binary is x64. Skipping i386 saves ~300 MB. |
+| `debian:trixie-slim` base | Explicit Debian release; Wine on Alpine/musl is unreliable for Steam games. |
+| Wine `win64` prefix | Server binary is x64; i386 packages are still enabled because WineHQ depends on them. |
 | Server files installed to the **volume**, not baked into the image | Image stays tiny (~700 MB-ish). Game updates do **not** require a rebuild. |
 | WineHQ stable from official repo | Reproducible, signed with pinned keyring. |
 | Non-root user `steam` (uid 1000) | Standard hardening; matches most NAS/host conventions. |
-| `tini` PID 1 | Reaps zombies and forwards signals to Wine for clean shutdown. |
+| `tini` PID 1 + explicit forwarding | Reaps zombies and gives Wine a clean stop path. |
 | `xvfb-run` wrapper (toggle `USE_XVFB`) | Solves the most common Wine headless quirks. |
-| Healthcheck = process + UDP listen | UDP can't be probed traditionally; check process + bound socket. |
+| Image + Compose healthchecks | UDP can't be probed traditionally; check process + bound socket. |
 
 ## Quick start (Docker Compose)
 
@@ -26,6 +26,8 @@ docker compose logs -f
 
 First start performs the initial SteamCMD install (~1–2 GB into the volume).
 Subsequent starts skip the update unless `UPDATE_ON_START=true`.
+The entrypoint writes a SteamCMD completion marker after successful installs so
+an interrupted first install is repaired on the next start.
 
 ## Environment variables
 
@@ -47,6 +49,10 @@ Subsequent starts skip the update unless `UPDATE_ON_START=true`.
 | `BACKUP_INTERVAL` | `3600` | Seconds between backups |
 | `BACKUP_KEEP` | `24` | Snapshots retained (older are pruned) |
 | `DISCORD_WEBHOOK_URL` | _(empty)_ | If set, posts start/stop/crash events |
+
+Backups are live snapshots. Archive files are written to a temporary path and
+renamed into place only after `tar` succeeds, but the game may still be writing
+save data while a backup is taken.
 
 ### Config merging rules
 

@@ -20,13 +20,13 @@ you know one, you know them all.
 
 | Choice | Why |
 |---|---|
-| `debian:stable-slim` base | Realistic minimum for the Steam runtime (and Wine, where needed). |
+| `debian:trixie-slim` base | Explicit Debian release with realistic runtime libraries for Steam and Wine. |
 | Server files installed to a **volume**, not baked into the image | Image stays small; game updates don't require an image rebuild. |
 | Non-root user `steam` (uid 1000) | Standard hardening; matches most NAS/host conventions. |
-| `tini` as PID 1 | Reaps zombies and forwards signals for clean shutdown. |
-| Env-driven config | Steer common settings via environment variables; advanced settings stay hand-editable on the volume. |
-| Healthcheck = process + UDP listen | UDP can't be probed traditionally; check the process and a bound socket. |
-| Optional backups + Discord notifications | Background tar.gz snapshots and start/stop/crash webhooks. |
+| `tini` as PID 1 + explicit forwarding | Reaps zombies and gives the game process a clean stop path. |
+| Env-driven config via Compose interpolation | Edit `.env`; Compose passes those values into the container. |
+| Image + Compose healthchecks | UDP can't be probed traditionally; check the process and a bound socket. |
+| Optional backups + Discord notifications | Background tar.gz snapshots with atomic archive writes and start/stop/crash webhooks. |
 
 ## Quick start
 
@@ -43,6 +43,10 @@ The first start runs the initial SteamCMD install into the volume. Subsequent
 starts skip the update unless `UPDATE_ON_START=true`. See each folder's
 `README.md` for the full environment-variable reference, volume layout, and
 port-forwarding details.
+
+Backups are best-effort live snapshots of game save data. They avoid partial
+archive files, but they do not replace offline backups or game-native save/flush
+mechanisms where a specific title exposes one.
 
 ## Repository layout
 
@@ -73,6 +77,7 @@ images (matrix) on push to `main` and on `vX.Y.Z` tags, then pushes to the
 GitHub Container Registry under
 `ghcr.io/mekbits/games/<game>-server` using the built-in `GITHUB_TOKEN` — no
 Docker Hub account or extra secrets required.
+Published images include BuildKit provenance and SBOM attestations.
 
 | Image | Registry path |
 |---|---|

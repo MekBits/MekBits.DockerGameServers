@@ -9,7 +9,7 @@
 #   - Non-root runtime user.
 #   - Optional BepInEx mod loader (toggle at runtime, opt-in).
 #
-FROM debian:stable-slim
+FROM debian:trixie-slim
 
 ARG STEAM_UID=1000
 ARG STEAM_GID=1000

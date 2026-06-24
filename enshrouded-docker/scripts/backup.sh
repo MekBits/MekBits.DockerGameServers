@@ -20,7 +20,22 @@ do_once() {
         echo "[backup] save dir '${SAVE_DIRECTORY}' missing, skipping."
         return 0
     fi
-    tar -czf "${out}" "${SAVE_DIRECTORY}"
+
+    local lock_dir="${BACKUP_DIR}/.backup.lock"
+    if ! mkdir "${lock_dir}" 2>/dev/null; then
+        echo "[backup] another backup is already running, skipping."
+        return 0
+    fi
+
+    local tmp="${out}.tmp"
+    trap '[[ -n "${tmp:-}" && -f "${tmp}" ]] && rm -f -- "${tmp}"; rmdir "${lock_dir}" 2>/dev/null || true' RETURN
+
+    if ! tar -czf "${tmp}" "${SAVE_DIRECTORY}"; then
+        echo "[backup] tar failed; no archive written."
+        return 1
+    fi
+    mv -f "${tmp}" "${out}"
+    tmp=""
     echo "[backup] wrote ${out}"
 
     # Prune oldest beyond BACKUP_KEEP
@@ -28,6 +43,9 @@ do_once() {
     for f in "${old[@]}"; do
         rm -f -- "${f}" && echo "[backup] pruned ${f}"
     done
+
+    trap - RETURN
+    rmdir "${lock_dir}" 2>/dev/null || true
 }
 
 case "${1:-}" in

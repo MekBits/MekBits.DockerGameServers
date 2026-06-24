@@ -10,14 +10,14 @@ kept deliberately lean to match the other servers here.
 
 | Choice | Why |
 |---|---|
-| `debian:stable-slim` base | Realistic minimum for the Steam runtime libraries. |
+| `debian:trixie-slim` base | Explicit Debian release with realistic Steam runtime libraries. |
 | **Native Linux server** (no Wine) | Valheim ships an x86_64 ELF binary; Wine would only add bloat. |
 | Server files installed to the **install volume**, not baked into the image | Image stays small. Game updates do **not** require an image rebuild. |
 | Two volumes: install + data | Lets you nuke and reinstall the game without touching worlds/saves. |
 | Non-root user `steam` (uid 1000) | Standard hardening; matches most NAS/host conventions. |
 | `tini` PID 1 + signal forwarding | Forwards SIGINT/SIGTERM to the server so it **saves the world before exit**. |
 | Optional **BepInEx** mod loader | Opt-in download of the official Thunderstore pack; off by default. |
-| Healthcheck = process + UDP listen | UDP can't be probed traditionally; check process + bound query socket. |
+| Image + Compose healthchecks | UDP can't be probed traditionally; check process + bound query socket. |
 
 ## Quick start (Docker Compose)
 
@@ -29,6 +29,8 @@ docker compose logs -f
 
 First start performs the initial SteamCMD install (~1–2 GB into the volume).
 Subsequent starts skip the update unless `UPDATE_ON_START=true`.
+The entrypoint writes a SteamCMD completion marker after successful installs so
+an interrupted first install is repaired on the next start.
 
 > **Password rules:** Valheim requires a password of **at least 5 characters**
 > for a public server, and the password must **not** be contained in the server
@@ -46,6 +48,7 @@ Subsequent starts skip the update unless `UPDATE_ON_START=true`.
 | `SERVER_PASSWORD` | _(empty)_ | Min 5 chars; required when `SERVER_PUBLIC=true` |
 | `SERVER_PUBLIC` | `true` | List on the community server browser |
 | `SERVER_PORT` | `2456` | UDP game port; query port is `SERVER_PORT+1` |
+| `SERVER_QUERY_PORT` | `2457` | UDP query port; keep this as `SERVER_PORT+1` |
 | `CROSSPLAY` | `false` | Enable PlayFab/Xbox + Steam crossplay |
 
 ### Mods / advanced
@@ -64,6 +67,10 @@ Subsequent starts skip the update unless `UPDATE_ON_START=true`.
 | `BACKUP_INTERVAL` | `3600` | Seconds between backups |
 | `BACKUP_KEEP` | `24` | Snapshots retained (older are pruned) |
 | `DISCORD_WEBHOOK_URL` | _(empty)_ | If set, posts start/stop/crash/backup events |
+
+Backups are live snapshots. Archive files are written to a temporary path and
+renamed into place only after `tar` succeeds, but the game may still be writing
+save data while a backup is taken.
 
 ## Admin / ban / permitted lists
 

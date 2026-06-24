@@ -35,6 +35,8 @@ set -euo pipefail
 : "${DISCORD_WEBHOOK_URL:=}"
 
 SERVER_BIN="valheim_server.x86_64"
+INSTALL_MARKER="${SERVER_DIR}/.steamcmd-${VALHEIM_APPID}.complete"
+BACKUP_PID=""
 
 log() { printf '[entrypoint] %s\n' "$*"; }
 
@@ -51,18 +53,24 @@ notify() {
 # ------------------------------------------------------------------ install --
 install_or_update() {
     local needs_install=false
-    if [[ ! -f "${SERVER_DIR}/${SERVER_BIN}" ]]; then
-        log "Server binary missing — performing fresh install."
+    if [[ ! -f "${SERVER_DIR}/${SERVER_BIN}" || ! -f "${INSTALL_MARKER}" ]]; then
+        log "Server install is missing or incomplete — running SteamCMD."
         needs_install=true
     fi
 
     if [[ "${needs_install}" == "true" || "${UPDATE_ON_START,,}" == "true" ]]; then
         log "Running SteamCMD for app ${VALHEIM_APPID}..."
+        rm -f "${INSTALL_MARKER}"
         "${STEAMCMD_DIR}/steamcmd.sh" \
             +force_install_dir "${SERVER_DIR}" \
             +login anonymous \
             +app_update "${VALHEIM_APPID}" validate \
             +quit
+        if [[ ! -f "${SERVER_DIR}/${SERVER_BIN}" ]]; then
+            log "ERROR: SteamCMD completed but ${SERVER_BIN} is still missing."
+            return 1
+        fi
+        date -u +%Y-%m-%dT%H:%M:%SZ > "${INSTALL_MARKER}"
     else
         log "Skipping update (UPDATE_ON_START=${UPDATE_ON_START})."
     fi
@@ -130,6 +138,14 @@ start_backup_loop() {
     [[ "${BACKUP_ENABLED,,}" == "true" ]] || return 0
     log "Backup loop enabled (interval=${BACKUP_INTERVAL:-3600}s)."
     /usr/local/bin/backup.sh --loop &
+    BACKUP_PID=$!
+}
+
+stop_backup_loop() {
+    [[ -n "${BACKUP_PID}" ]] || return 0
+    kill "${BACKUP_PID}" 2>/dev/null || true
+    wait "${BACKUP_PID}" 2>/dev/null || true
+    BACKUP_PID=""
 }
 
 # ----------------------------------------------------------- run the server --
@@ -179,7 +195,15 @@ run_server() {
         launcher="./${SERVER_BIN}"
     fi
 
-    log "Launching: ${launcher} ${args[*]}"
+    local -a log_args=("${args[@]}")
+    local i
+    for ((i = 0; i < ${#log_args[@]}; i++)); do
+        if [[ "${log_args[$i]}" == "-password" && $((i + 1)) -lt ${#log_args[@]} ]]; then
+            log_args[$((i + 1))]='<redacted>'
+        fi
+    done
+
+    log "Launching: ${launcher} ${log_args[*]}"
     notify start "Valheim server starting: \`${SERVER_NAME}\` (world: ${WORLD_NAME})"
 
     # Run in the background and forward shutdown signals so Valheim can save the
@@ -187,8 +211,8 @@ run_server() {
     "${launcher}" "${args[@]}" &
     local server_pid=$!
 
-    local rc=0
-    forward() { log "Received stop signal — asking Valheim to save & quit."; kill -INT "${server_pid}" 2>/dev/null || true; }
+    local rc=0 stopping=false
+    forward() { stopping=true; log "Received stop signal — asking Valheim to save & quit."; kill -INT "${server_pid}" 2>/dev/null || true; }
     trap forward INT TERM
 
     # wait may return early when interrupted by the trap; loop until the
@@ -197,6 +221,11 @@ run_server() {
         wait "${server_pid}" && rc=0 || rc=$?
     done
     trap - INT TERM
+    stop_backup_loop
+
+    if [[ "${stopping}" == "true" && ${rc} -ge 128 ]]; then
+        rc=0
+    fi
 
     log "Server exited with code ${rc}."
     if [[ ${rc} -ne 0 ]]; then

@@ -3,44 +3,54 @@ services:
     # Published image: ghcr.io/mekbits/games/enshrouded-server:latest
     image: enshrouded-server:local
     build: .
+    platform: linux/amd64
     container_name: enshrouded
     restart: unless-stopped
     stop_grace_period: 90s
+    security_opt:
+      - no-new-privileges:true
 
     ports:
-      - "15636:15636/udp"   # game
-      - "15637:15637/udp"   # query
+      - "${GAME_PORT:-15636}:${GAME_PORT:-15636}/udp"     # game
+      - "${QUERY_PORT:-15637}:${QUERY_PORT:-15637}/udp"   # query
 
     environment:
       # --- Update behaviour ---
-      UPDATE_ON_START: "false"        # set true to validate/update on each start
+      UPDATE_ON_START: "${UPDATE_ON_START:-false}"        # set true to validate/update on each start
 
       # --- Server identity ---
-      SERVER_NAME:     "My Enshrouded Server"
-      SERVER_PASSWORD: "change-me"
-      SERVER_SLOTS:    "16"
+      SERVER_NAME:     "${SERVER_NAME:-My Enshrouded Server}"
+      SERVER_PASSWORD: "${SERVER_PASSWORD-change-me}"
+      SERVER_SLOTS:    "${SERVER_SLOTS:-16}"
 
       # --- Networking (must match the ports: mapping above) ---
-      SERVER_IP:   "0.0.0.0"
-      GAME_PORT:   "15636"
-      QUERY_PORT:  "15637"
+      SERVER_IP:  "${SERVER_IP:-0.0.0.0}"
+      GAME_PORT:  "${GAME_PORT:-15636}"
+      QUERY_PORT: "${QUERY_PORT:-15637}"
 
       # --- Gameplay / chat ---
-      VOICE_CHAT_MODE:      "Proximity"
-      ENABLE_VOICE_CHAT:    "false"
-      ENABLE_TEXT_CHAT:     "false"
-      GAME_SETTINGS_PRESET: "Default"
+      VOICE_CHAT_MODE:      "${VOICE_CHAT_MODE:-Proximity}"
+      ENABLE_VOICE_CHAT:    "${ENABLE_VOICE_CHAT:-false}"
+      ENABLE_TEXT_CHAT:     "${ENABLE_TEXT_CHAT:-false}"
+      GAME_SETTINGS_PRESET: "${GAME_SETTINGS_PRESET:-Default}"
 
       # --- Runtime ---
-      USE_XVFB: "true"
+      USE_XVFB: "${USE_XVFB:-true}"
 
       # --- Backups ---
-      BACKUP_ENABLED:  "true"
-      BACKUP_INTERVAL: "3600"          # seconds
-      BACKUP_KEEP:     "24"
+      BACKUP_ENABLED:  "${BACKUP_ENABLED:-true}"
+      BACKUP_INTERVAL: "${BACKUP_INTERVAL:-3600}"          # seconds
+      BACKUP_KEEP:     "${BACKUP_KEEP:-24}"
 
       # --- Notifications ---
-      # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
+      DISCORD_WEBHOOK_URL: "${DISCORD_WEBHOOK_URL:-}"
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 3
 
     volumes:
       - enshrouded-data:/home/steam/enshrouded

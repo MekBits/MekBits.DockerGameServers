@@ -6,15 +6,15 @@
 set -euo pipefail
 
 : "${SERVER_PORT:=2456}"
-QUERY_PORT=$((SERVER_PORT + 1))
+: "${SERVER_QUERY_PORT:=$((SERVER_PORT + 1))}"
 
 if ! pgrep -f 'valheim_server' >/dev/null 2>&1; then
     echo "unhealthy: valheim_server not running"
     exit 1
 fi
 
-if ! ss -lun "sport = :${QUERY_PORT}" | grep -q ":${QUERY_PORT}"; then
-    echo "unhealthy: UDP/${QUERY_PORT} not listening"
+if ! ss -lun "sport = :${SERVER_QUERY_PORT}" | grep -q ":${SERVER_QUERY_PORT}"; then
+    echo "unhealthy: UDP/${SERVER_QUERY_PORT} not listening"
     exit 1
 fi
 

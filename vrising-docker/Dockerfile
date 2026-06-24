@@ -10,7 +10,7 @@
 #   - Non-root runtime user.
 #   - Reproducible: pinned WineHQ apt source, minimal recommended packages.
 #
-FROM debian:stable-slim
+FROM debian:trixie-slim
 
 ARG STEAM_UID=1000
 ARG STEAM_GID=1000
