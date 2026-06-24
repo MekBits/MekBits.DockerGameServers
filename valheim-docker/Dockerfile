@@ -61,8 +61,11 @@ WORKDIR ${STEAM_HOME}
 
 RUN set -eux; \
     mkdir -p "${STEAMCMD_DIR}" "${SERVER_DIR}" "${DATA_DIR}"; \
-    curl -fsSL https://media.steampowered.com/installer/steamcmd_linux.tar.gz \
-        | tar -xz -C "${STEAMCMD_DIR}"; \
+    curl -fsSL --retry 5 --retry-delay 5 --retry-all-errors \
+        -o /tmp/steamcmd.tar.gz \
+        https://media.steampowered.com/installer/steamcmd_linux.tar.gz; \
+    tar -xzf /tmp/steamcmd.tar.gz -C "${STEAMCMD_DIR}"; \
+    rm -f /tmp/steamcmd.tar.gz; \
     # Trigger first-run self-update so it caches its bootstrap files
     "${STEAMCMD_DIR}/steamcmd.sh" +quit || true
 
