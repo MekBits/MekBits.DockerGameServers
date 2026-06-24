@@ -1,0 +1,75 @@
+services:
+  vrising:
+    # Published image: ghcr.io/mekbits/games/vrising-server:latest
+    image: vrising-server:local
+    build: .
+    container_name: vrising
+    restart: unless-stopped
+    stop_grace_period: 90s
+
+    ports:
+      - "9876:9876/udp"     # game
+      - "27015:27015/udp"   # query
+      # - "25575:25575/tcp" # RCON (only if RCON_ENABLED=true)
+
+    environment:
+      # --- Update behaviour ---
+      UPDATE_ON_START: "false"        # set true to validate/update on each start
+
+      # --- Server identity ---
+      SERVER_NAME:        "My V Rising Server"
+      SERVER_DESCRIPTION: ""
+      SERVER_PASSWORD:    ""           # empty = no password
+      SAVE_NAME:          "world1"
+      MAX_USERS:          "40"
+      MAX_ADMINS:         "4"
+      SERVER_FPS:         "30"
+
+      # --- Networking (must match the ports: mapping above) ---
+      GAME_PORT:   "9876"
+      QUERY_PORT:  "27015"
+
+      # --- Listing / EOS ---
+      LIST_ON_STEAM: "true"
+      LIST_ON_EOS:   "true"
+      SECURE:        "true"
+
+      # --- Persistence ---
+      AUTO_SAVE_COUNT:     "40"
+      AUTO_SAVE_INTERVAL:  "120"       # seconds
+      COMPRESS_SAVE_FILES: "true"
+
+      # --- Game presets (optional; leave empty for defaults) ---
+      GAME_SETTINGS_PRESET:     ""     # e.g. "StandardPvP", "DuoPvP", "Solo"
+      GAME_DIFFICULTY_PRESET:   ""     # e.g. "Hard"
+
+      # --- Debug / admin ---
+      ADMIN_ONLY_DEBUG_EVENTS: "true"
+      DISABLE_DEBUG_EVENTS:    "false"
+
+      # --- RCON (optional) ---
+      RCON_ENABLED:  "false"
+      RCON_PORT:     "25575"
+      RCON_PASSWORD: ""
+
+      # --- API (optional) ---
+      API_ENABLED: "false"
+
+      # --- Runtime ---
+      USE_XVFB: "true"
+
+      # --- Backups ---
+      BACKUP_ENABLED:  "true"
+      BACKUP_INTERVAL: "3600"          # seconds
+      BACKUP_KEEP:     "24"
+
+      # --- Notifications ---
+      # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
+
+    volumes:
+      - vrising-install:/home/steam/vrising
+      - vrising-data:/home/steam/vrising-data
+
+volumes:
+  vrising-install:
+  vrising-data:

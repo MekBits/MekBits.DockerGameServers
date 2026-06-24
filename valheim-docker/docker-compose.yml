@@ -1,0 +1,56 @@
+services:
+  valheim:
+    # Published image: ghcr.io/mekbits/games/valheim-server:latest
+    image: valheim-server:local
+    build: .
+    container_name: valheim
+    restart: unless-stopped
+    stop_grace_period: 90s
+
+    ports:
+      - "2456:2456/udp"   # game
+      - "2457:2457/udp"   # Steam query (game port + 1)
+
+    environment:
+      # --- Update behaviour ---
+      UPDATE_ON_START: "false"        # set true to validate/update on each start
+
+      # --- Server identity ---
+      SERVER_NAME:     "My Valheim Server"
+      WORLD_NAME:      "Dedicated"
+      SERVER_PASSWORD: "change-me"     # min 5 chars; required for public servers
+      SERVER_PUBLIC:   "true"          # list on the community server browser
+
+      # --- Networking (must match the ports: mapping above) ---
+      SERVER_PORT:     "2456"          # query port is automatically SERVER_PORT+1
+
+      # --- Crossplay (PlayFab/Xbox + Steam) ---
+      CROSSPLAY:       "false"
+
+      # --- Access control (optional; when set, OVERWRITES the on-disk list) ---
+      # Comma/space separated SteamID64s.
+      # ADMIN_IDS:     "76561198000000000 76561198000000001"
+      # BANNED_IDS:    ""
+      # PERMITTED_IDS: ""
+
+      # --- Mods (opt-in) ---
+      BEPINEX:         "false"         # true = install BepInEx mod loader
+
+      # --- Advanced launch flags (optional passthrough) ---
+      # EXTRA_ARGS: "-preset hard -modifier resources more"
+
+      # --- Backups ---
+      BACKUP_ENABLED:  "true"
+      BACKUP_INTERVAL: "3600"          # seconds
+      BACKUP_KEEP:     "24"
+
+      # --- Notifications ---
+      # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
+
+    volumes:
+      - valheim-install:/home/steam/valheim
+      - valheim-data:/home/steam/valheim-data
+
+volumes:
+  valheim-install:
+  valheim-data:

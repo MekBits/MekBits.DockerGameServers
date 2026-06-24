@@ -1,0 +1,93 @@
+# MekBits Docker Game Servers
+
+A small collection of unofficial, minimal-footprint Docker images for
+self-hosting dedicated game servers. Each image follows the same conventions —
+SteamCMD-based install onto a volume, a non-root `steam` user, `tini` as PID 1,
+env-driven configuration, optional backups, and Discord notifications — so once
+you know one, you know them all.
+
+## Servers
+
+| Server | Folder | Runtime | Steam AppID | Default ports (UDP) | Notes |
+|---|---|---|---|---|---|
+| **Valheim** | [`valheim-docker/`](valheim-docker) | Native Linux | `896660` | `2456` game, `2457` query | Optional BepInEx mods, crossplay, env-driven access lists |
+| **V Rising** | [`vrising-docker/`](vrising-docker) | Debian + Wine (x64) | `1829350` | `9876` game, `27015` query | Optional RCON/API, JSON config merge |
+| **Enshrouded** | [`enshrouded-docker/`](enshrouded-docker) | Debian + Wine (x64) | `2278520` | `15636` game, `15637` query | JSON config merge |
+
+> V Rising and Enshrouded are Windows-only binaries run under 64-bit Wine.
+
+## Shared design
+
+| Choice | Why |
+|---|---|
+| `debian:stable-slim` base | Realistic minimum for the Steam runtime (and Wine, where needed). |
+| Server files installed to a **volume**, not baked into the image | Image stays small; game updates don't require an image rebuild. |
+| Non-root user `steam` (uid 1000) | Standard hardening; matches most NAS/host conventions. |
+| `tini` as PID 1 | Reaps zombies and forwards signals for clean shutdown. |
+| Env-driven config | Steer common settings via environment variables; advanced settings stay hand-editable on the volume. |
+| Healthcheck = process + UDP listen | UDP can't be probed traditionally; check the process and a bound socket. |
+| Optional backups + Discord notifications | Background tar.gz snapshots and start/stop/crash webhooks. |
+
+## Quick start
+
+Pick a server folder and use Docker Compose:
+
+```bash
+cd valheim-docker          # or vrising-docker / enshrouded-docker
+cp .env.example .env       # edit values (set a real password!)
+docker compose up -d --build
+docker compose logs -f
+```
+
+The first start runs the initial SteamCMD install into the volume. Subsequent
+starts skip the update unless `UPDATE_ON_START=true`. See each folder's
+`README.md` for the full environment-variable reference, volume layout, and
+port-forwarding details.
+
+## Repository layout
+
+```
+.
+├── valheim-docker/        # Valheim dedicated server (native Linux)
+├── vrising-docker/        # V Rising dedicated server (Wine)
+├── enshrouded-docker/     # Enshrouded dedicated server (Wine)
+└── LICENSE
+```
+
+Each server folder contains:
+
+```
+Dockerfile
+docker-compose.yml
+.env.example
+.dockerignore
+README.md
+.github/workflows/docker-publish.yml   # build & push to GHCR
+scripts/                                # entrypoint, backup, healthcheck, notify, ...
+```
+
+## Publishing
+
+Every server ships a GitHub Actions workflow that builds on push to `main` and
+on `vX.Y.Z` tags, then pushes to the GitHub Container Registry under
+`ghcr.io/mekbits/games/<game>-server` using the built-in `GITHUB_TOKEN` — no
+Docker Hub account or extra secrets required.
+
+| Image | Registry path |
+|---|---|
+| Valheim | `ghcr.io/mekbits/games/valheim-server` |
+| V Rising | `ghcr.io/mekbits/games/vrising-server` |
+| Enshrouded | `ghcr.io/mekbits/games/enshrouded-server` |
+
+To publish under a different path, set the optional `IMAGE_NAME` repository
+variable in each repo/folder.
+
+## Disclaimer
+
+These images are unofficial and not affiliated with or endorsed by the
+respective game developers or publishers. Game content is downloaded at runtime
+via SteamCMD under your own Steam licence terms. Provided as-is.
+
+## License
+
+Licensed under the [Apache License 2.0](LICENSE).

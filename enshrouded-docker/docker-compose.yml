@@ -1,0 +1,49 @@
+services:
+  enshrouded:
+    # Published image: ghcr.io/mekbits/games/enshrouded-server:latest
+    image: enshrouded-server:local
+    build: .
+    container_name: enshrouded
+    restart: unless-stopped
+    stop_grace_period: 90s
+
+    ports:
+      - "15636:15636/udp"   # game
+      - "15637:15637/udp"   # query
+
+    environment:
+      # --- Update behaviour ---
+      UPDATE_ON_START: "false"        # set true to validate/update on each start
+
+      # --- Server identity ---
+      SERVER_NAME:     "My Enshrouded Server"
+      SERVER_PASSWORD: "change-me"
+      SERVER_SLOTS:    "16"
+
+      # --- Networking (must match the ports: mapping above) ---
+      SERVER_IP:   "0.0.0.0"
+      GAME_PORT:   "15636"
+      QUERY_PORT:  "15637"
+
+      # --- Gameplay / chat ---
+      VOICE_CHAT_MODE:      "Proximity"
+      ENABLE_VOICE_CHAT:    "false"
+      ENABLE_TEXT_CHAT:     "false"
+      GAME_SETTINGS_PRESET: "Default"
+
+      # --- Runtime ---
+      USE_XVFB: "true"
+
+      # --- Backups ---
+      BACKUP_ENABLED:  "true"
+      BACKUP_INTERVAL: "3600"          # seconds
+      BACKUP_KEEP:     "24"
+
+      # --- Notifications ---
+      # DISCORD_WEBHOOK_URL: "https://discord.com/api/webhooks/..."
+
+    volumes:
+      - enshrouded-data:/home/steam/enshrouded
+
+volumes:
+  enshrouded-data:
