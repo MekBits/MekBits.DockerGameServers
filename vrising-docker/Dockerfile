@@ -5,7 +5,8 @@
 # Design goals:
 #   - Small image: server files are installed to the data volume on first run,
 #     not baked into the image.
-#   - 64-bit Wine only (no i386 multiarch) — saves hundreds of MB.
+#   - WINEARCH=win64 runtime; i386 arch is enabled only because the WineHQ
+#     packages hard-depend on their i386 component.
 #   - Non-root runtime user.
 #   - Reproducible: pinned WineHQ apt source, minimal recommended packages.
 #
@@ -27,8 +28,11 @@ ENV DEBIAN_FRONTEND=noninteractive \
     STEAMCMD_DIR=/home/steam/steamcmd \
     VRISING_APPID=1829350
 
-# --- System deps + WineHQ repo (64-bit only) ---------------------------------
+# --- System deps + WineHQ repo -----------------------------------------------
+# WineHQ's win64 packages depend on their i386 counterparts, so i386 must be
+# enabled even though the server runs under WINEARCH=win64.
 RUN set -eux; \
+    dpkg --add-architecture i386; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
         ca-certificates \
