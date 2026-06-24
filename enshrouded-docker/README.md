@@ -94,7 +94,8 @@ docker push ghcr.io/mekbits/games/enshrouded-server:latest
 
 ### Automated (GitHub Actions)
 
-The included workflow `.github/workflows/docker-publish.yml` builds on push to
+The root workflow `.github/workflows/docker-publish.yml` (in the repository
+root, not this folder) builds all three images on push to
 `main` and on `vX.Y.Z` tags, then pushes to
 `ghcr.io/mekbits/games/enshrouded-server` using the built-in `GITHUB_TOKEN` — no
 extra secrets required. To publish under a different path, set the optional

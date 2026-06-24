@@ -48,6 +48,7 @@ port-forwarding details.
 
 ```
 .
+├── .github/workflows/    # CI: build & push all images to GHCR
 ├── valheim-docker/        # Valheim dedicated server (native Linux)
 ├── vrising-docker/        # V Rising dedicated server (Wine)
 ├── enshrouded-docker/     # Enshrouded dedicated server (Wine)
@@ -62,14 +63,14 @@ docker-compose.yml
 .env.example
 .dockerignore
 README.md
-.github/workflows/docker-publish.yml   # build & push to GHCR
-scripts/                                # entrypoint, backup, healthcheck, notify, ...
+scripts/                 # entrypoint, backup, healthcheck, notify, ...
 ```
 
 ## Publishing
 
-Every server ships a GitHub Actions workflow that builds on push to `main` and
-on `vX.Y.Z` tags, then pushes to the GitHub Container Registry under
+The root workflow `.github/workflows/docker-publish.yml` builds all three
+images (matrix) on push to `main` and on `vX.Y.Z` tags, then pushes to the
+GitHub Container Registry under
 `ghcr.io/mekbits/games/<game>-server` using the built-in `GITHUB_TOKEN` — no
 Docker Hub account or extra secrets required.
 
