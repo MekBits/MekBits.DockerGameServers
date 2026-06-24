@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 #
 # V Rising Dedicated Server — Debian slim + Wine (stable, 64-bit only)
 #

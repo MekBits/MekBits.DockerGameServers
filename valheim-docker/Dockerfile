@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1
 #
 # Valheim Dedicated Server — Debian slim, Linux-native (no Wine)
 #
